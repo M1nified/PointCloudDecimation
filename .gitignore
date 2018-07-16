@@ -1,3 +1,7 @@
+
+# Point clouds
+*.pts
+
 # Prerequisites
 *.d
 
