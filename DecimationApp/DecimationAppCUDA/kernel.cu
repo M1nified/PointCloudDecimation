@@ -1,57 +1,54 @@
-
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
 #include <fstream>
-#include "Point.h"
+#include <list>
 
-bool loadFromPTSFile(std::string filename, unsigned long long * initialSize, Point ** cloud, Point ** cloudCuda);
+#include "Point.h"
+#include "Storage.h"
+
+
+
+
+bool loadFromPTSFile(std::string filename, unsigned long long * initialSize, Store::Store ** store);
 
 int main()
 {
-	//PointCloudDecimator * decimator = new PointCloudDecimator();
-	//decimator->LoadFromPTSFile("SONGA_BREEZE_L4.pts");
 	unsigned long long initialSize;
-	Point * cloud = NULL;
-	Point * cloudCuda = NULL;
-	loadFromPTSFile("SONGA_BREEZE_L4.pts", &initialSize, &cloud, &cloudCuda);
+
+	Store::Store * store = Store::init();
+	Store::setFragmentationLevel(store, 5);
+
+	loadFromPTSFile("SONGA_BREEZE_L4.pts", &initialSize, &store);
 	return 0;
 }
 
-bool loadFromPTSFile(std::string filename, unsigned long long * initialSize, Point ** cloud, Point ** cloudCuda)
+bool loadFromPTSFile(std::string filename, unsigned long long * initialSize, Store::Store ** store)
 {
 	std::ifstream ifs(filename);
 	std::string size = "";
 	std::string line = "";
 	Point * point;
-	Point * cloudLocal;
-	Point * cloudCudaLocal;
+	point = new Point();
+	double x, y, z;
+
 	if (ifs.is_open())
 	{
 		if (getline(ifs, size))
 		{
 			*initialSize = std::stoull(size);
-			if (NULL != (cloudLocal = (Point *)malloc(*initialSize * sizeof(Point))))
+			for (unsigned long long i = 0; getline(ifs, line) && i < 100000; i++)
 			{
-				if (cudaSuccess == cudaMalloc(&cloudCuda, *initialSize * sizeof(Point)))
-				{
-					for (unsigned long long i = 0; getline(ifs, line) && i < 100000; i++)
-					{
-						point = new Point();
-						point->Parse(line);
-						cloudLocal[i] = *point;
-					}
-					ifs.close();
-					*cloud = cloudLocal;
-					if (cudaSuccess == cudaMemcpy(cloudCudaLocal, cloudLocal, *initialSize, cudaMemcpyHostToDevice))
-					{
-						*cloudCuda = cloudCudaLocal;
-						return true;
-					}
-				}
+				point->Parse(line);
+				x = point->x;
+				y = point->y;
+				z = point->z;
+				Store::addPointXYZ(*store, x, y, z);
 			}
+			ifs.close();
+			return true;
 		}
 		ifs.close();
 	}
