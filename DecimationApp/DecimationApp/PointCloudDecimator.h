@@ -1,7 +1,11 @@
 #pragma once
+#include <list>
+#include "Point.h"
 class PointCloudDecimator
 {
 public:
+	int initialSize;
+
 	PointCloudDecimator();
 	~PointCloudDecimator();
 

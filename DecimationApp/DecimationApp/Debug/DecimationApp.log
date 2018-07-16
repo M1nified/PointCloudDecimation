@@ -1,0 +1,7 @@
+﻿  stdafx.cpp
+  DecimationApp.cpp
+d:\decimate\pointclouddecimation\decimationapp\decimationapp\decimationapp.cpp(16): warning C4101: 'cloud': unreferenced local variable
+  Point.cpp
+  PointCloudDecimator.cpp
+  Generating Code...
+  DecimationApp.vcxproj -> D:\decimate\PointCloudDecimation\DecimationApp\Debug\DecimationApp.exe

@@ -1,17 +1,21 @@
 #pragma once
+#include <string>
 class Point
 {
 public:
-	float x;
-	float y;
-	float z;
+	double x;
+	double y;
+	double z;
 
 	Point();
 	~Point();
 
-	float GetCubicDistanceTo(Point point);
-	float GetDistanceTo(Point point);
+	double GetCubicDistanceTo(Point point);
+	double GetDistanceTo(Point point);
+
+	void SetXYZ(double y, double z, double x);
 
 	bool Parse(std::string input);
+	bool Parse(char * input);
 };
 
