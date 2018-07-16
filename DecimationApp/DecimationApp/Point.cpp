@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Point.h"
 #include "algorithm"
-
+#include <string>
 
 Point::Point()
 {

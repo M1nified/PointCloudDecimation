@@ -11,5 +11,7 @@ public:
 
 	float GetCubicDistanceTo(Point point);
 	float GetDistanceTo(Point point);
+
+	bool Parse(std::string input);
 };
 
