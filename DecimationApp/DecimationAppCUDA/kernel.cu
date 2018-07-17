@@ -7,7 +7,8 @@
 #include <list>
 
 #include "Point.h"
-#include "Storage.h"
+#include "Store.h"
+#include "StoreCuda.cuh"
 
 
 
@@ -19,9 +20,13 @@ int main()
 	unsigned long long initialSize;
 
 	Store::Store * store = Store::init();
+	StoreCuda::StoreCuda * storeCuda = StoreCuda::init(store);
 	Store::setFragmentationLevel(store, 5);
 
 	loadFromPTSFile("SONGA_BREEZE_L4.pts", &initialSize, &store);
+
+	StoreCuda::copyDataToGpu(storeCuda);
+
 	return 0;
 }
 
@@ -39,7 +44,7 @@ bool loadFromPTSFile(std::string filename, unsigned long long * initialSize, Sto
 		if (getline(ifs, size))
 		{
 			*initialSize = std::stoull(size);
-			for (unsigned long long i = 0; getline(ifs, line) && i < 100000; i++)
+			for (unsigned long long i = 0; getline(ifs, line) && i < 1000; i++)
 			{
 				point->Parse(line);
 				x = point->x;

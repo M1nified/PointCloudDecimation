@@ -79,14 +79,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="StoreCuda.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Point.cpp" />
-    <ClCompile Include="Storage.cpp" />
+    <ClCompile Include="Store.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Point.h" />
-    <ClInclude Include="Storage.h" />
+    <ClInclude Include="StoreCuda.cuh" />
+    <ClInclude Include="Store.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
