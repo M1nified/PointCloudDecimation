@@ -32,6 +32,8 @@ namespace StoreCuda
 		cudaMalloc(&fracListMap, decCount * sizeof fraction_list);
 		cudaMalloc(&fracListCuda, fracCount * sizeof pk_list);
 
+		cudaRealloc
+
 		int i = 0;
 		for (std::list<DecimalRecord>::iterator it = dimension->begin(); it != dimension->end(); ++it)
 		{
@@ -42,9 +44,12 @@ namespace StoreCuda
 
 		cudaMemcpy(decListMap, decList, decCount * sizeof ull, cudaMemcpyHostToDevice);
 		cudaMemcpy(fracListMap, fracList, decCount * sizeof fraction_list, cudaMemcpyHostToDevice);
-		for (i--; i >= 0; i--)
+
+		i = 0;
+		for (std::list<DecimalRecord>::iterator it = dimension->begin(); it != dimension->end(); ++it)
 		{
-			cudaMemcpy(fracListMap[i], dimension->fra , fracCount * sizeof fraction_list, cudaMemcpyHostToDevice);
+			cudaMemcpy(fracListMap[i], it->fractions , fracCount * sizeof fraction_list, cudaMemcpyHostToDevice);
+			i++;
 		}
 	}
 
