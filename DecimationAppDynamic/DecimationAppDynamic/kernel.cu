@@ -9,21 +9,15 @@
 
 typedef unsigned long long ull;
 
-typedef short int dim_dec;
-typedef unsigned int dim_frac;
+typedef int dimension;
 
-struct Dimension
-{
-	dim_dec dec;
-	dim_frac frac;
-};
+typedef short int meter;
+typedef unsigned short int rest;
 
 struct Point
 {
-	Dimension x, y, z;
+	dimension x, y, z;
 };
-
-typedef std::list<Point> point_list;
 
 bool parseLineToPoint(Point * point, char * input);
 bool loadFromPTSFile(std::string filename, ull * initialSize, Point ** cloudArr);
