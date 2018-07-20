@@ -1,6 +1,2 @@
-﻿  DecimateCPU.cpp
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(29): warning C4129: 'S': unrecognized character escape sequence
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(60): warning C4101: 'z': unreferenced local variable
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(60): warning C4101: 'y': unreferenced local variable
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(60): warning C4101: 'x': unreferenced local variable
+﻿  Filter.cpp
   DecimateCPU.vcxproj -> D:\decimate\PointCloudDecimation\DecimateCPU\x64\Debug\DecimateCPU.exe

@@ -17,14 +17,15 @@ rest getRest(dimension dim)
 
 bool Storage::init(Store * store)
 {
+	store->inputFilename = "";
 	return true;
 }
 
 bool Storage::addPoint(Store * store, Point * point)
 {
 	assignPointToMeter(store, point, 'x');
-	assignPointToMeter(store, point, 'y');
-	assignPointToMeter(store, point, 'z');
+	//assignPointToMeter(store, point, 'y');
+	//assignPointToMeter(store, point, 'z');
 	return true;
 }
 
@@ -56,7 +57,28 @@ bool Storage::assignPointToMeter(Store * store, Point * point, char dimCode)
 	return true;
 }
 
-Meter * Storage::getMeterStruct(Store * store, meter_list * ml, meter m)
+Meter * Storage::getMeterStruct(Store * store, meter_list * ml, meter m, Meter * meter)
+{
+	if (meter == nullptr)
+	{
+		meter = findMeterStruct(store, ml, m);
+	}
+	if (meter == nullptr)
+	{
+		meter = new Meter();
+		meter->meter = m;
+		auto count = store->segmentsCount;
+		meter->segments = (PointArr *)malloc(count * sizeof PointArr);
+		for (int i = 0; i < count; i++)
+		{
+			meter->segments[i].count = (ull)0;
+		}
+		ml->push_front(meter);
+	}
+	return meter;
+}
+
+Meter * Storage::findMeterStruct(Store * store, meter_list * ml, meter m)
 {
 	Meter * meter = nullptr;
 	for (auto it = ml->begin(); it != ml->end(); ++it)
@@ -66,19 +88,6 @@ Meter * Storage::getMeterStruct(Store * store, meter_list * ml, meter m)
 			meter = *it;
 			break;
 		}
-	}
-	if (meter == nullptr)
-	{
-		meter = new Meter();
-		meter->meter = m;
-		auto devider = 10 * DEVIDER;
-		auto count = devider / store->d;
-		meter->segments = (PointArr *)malloc(count * sizeof PointArr);
-		for (int i = 0; i < count; i++)
-		{
-			meter->segments[i].count = (ull)0;
-		}
-		ml->push_front(meter);
 	}
 	return meter;
 }
@@ -110,5 +119,69 @@ bool Storage::addPointToMeter(Store * store, Meter * meter, dimension dim, Point
 bool Storage::setD(Store * store, dimension d)
 {
 	store->d = d;
+	auto devider = 10 * DEVIDER;
+	auto count = devider / store->d;
+	store->segmentsCount = count;
 	return true;
+}
+
+bool Storage::setInputPtsFile(Store * store, std::string filename)
+{
+	store->inputFilename = filename;
+	return true;
+}
+
+bool Storage::parseLineToPoint(Point * p, char * line)
+{
+	double x, y, z;
+	if (3 == sscanf_s(line, "%lf %lf %lf%*s", &x, &y, &z))
+	{
+		p->x = meterToDimension(x);
+		p->y = meterToDimension(y);
+		p->z = meterToDimension(z);
+		return true;
+	}
+	return false;
+}
+
+dimension Storage::meterToDimension(double meter)
+{
+	dimension dim = (dimension)floor(meter * 10000);
+	return dim;
+}
+
+bool Storage::loadFromPtsFile(Store * store)
+{
+	std::ifstream ifs(store->inputFilename);
+	std::string size = "";
+	std::string line = "";
+	double x, y, z;
+
+	Point ** cloudArr;
+
+	if (ifs.is_open())
+	{
+		if (getline(ifs, size))
+		{
+			//store->initialSize = std::stoull(size);
+			store->initialSize = 1000;
+			cloudArr = (Point **)malloc(store->initialSize * sizeof(Point*));
+			store->points = cloudArr;
+			for (ull i = 0; getline(ifs, line) && i<1000; i++)
+			{
+				const char * l = line.c_str();
+				cloudArr[i] = new Point();
+				cloudArr[i]->exists = true;
+				if (parseLineToPoint(cloudArr[i], (char *)l))
+				{
+					Storage::addPoint(store, cloudArr[i]);
+					//cloudArr[i] = &p;
+				}
+			}
+			ifs.close();
+			return true;
+		}
+		ifs.close();
+	}
+	return false;
 }
