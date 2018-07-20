@@ -1,3 +1,1 @@
-﻿  Storage.cpp
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(103): warning C4244: 'argument': conversion from 'ull' to 'size_t', possible loss of data
-  DecimateCPU.vcxproj -> D:\decimate\PointCloudDecimation\DecimateCPU\Debug\DecimateCPU.exe
+﻿
