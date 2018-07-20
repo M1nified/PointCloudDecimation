@@ -152,7 +152,7 @@ dimension Storage::meterToDimension(double meter)
 
 bool Storage::loadFromPtsFile(Store * store)
 {
-	std::ifstream ifs(store->inputFilename);
+	static std::ifstream ifs(store->inputFilename);
 	std::string size = "";
 	std::string line = "";
 	double x, y, z;
@@ -163,11 +163,11 @@ bool Storage::loadFromPtsFile(Store * store)
 	{
 		if (getline(ifs, size))
 		{
-			//store->initialSize = std::stoull(size);
-			store->initialSize = 1000;
+			store->initialSize = std::stoull(size);
+			//store->initialSize = 10000;
 			cloudArr = (Point **)malloc(store->initialSize * sizeof(Point*));
 			store->points = cloudArr;
-			for (ull i = 0; getline(ifs, line) && i<1000; i++)
+			for (ull i = 0; getline(ifs, line); i++)
 			{
 				const char * l = line.c_str();
 				cloudArr[i] = new Point();

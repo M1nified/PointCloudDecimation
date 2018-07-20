@@ -74,31 +74,31 @@ bool Filter::filter(SFilter * filter)
 	for (auto it = xMetList->begin(); it != xMetList->end(); ++it)
 	{
 		auto segCount = filter->store->segmentsCount;
-		for (int i = 0; i < segCount; i++)
+		for (int segmentIndex = 0; segmentIndex < segCount; segmentIndex++)
 		{
 			bool oneLeftAlive = false;
-			for (int j = 0; j < (*it)->segments[i].count; j++)
+			for (int j = 0; j < (*it)->segments[segmentIndex].count; j++)
 			{
 				if (oneLeftAlive)
 				{
-					(*it)->segments[i].points[j].exists = false;
+					(*it)->segments[segmentIndex].points[j].exists = false;
 					filter->deletedCount++;
 				}
-				else if ((*it)->segments[i].points[j].exists)
+				else if ((*it)->segments[segmentIndex].points[j].exists)
 				{
 					oneLeftAlive = true;
-					Point * point = &(*it)->segments[i].points[j];
-					if (i == 0)
+					Point * point = &(*it)->segments[segmentIndex].points[j];
+					if (segmentIndex == 0)
 					{
 						filterDeleteCollisionBeforeGroup(filter, xMetList, *it, point);
 					}
-					else if (i == filter->store->segmentsCount - 1)
+					else if (segmentIndex == filter->store->segmentsCount - 1)
 					{
 						filterDeleteCollisionsAfterGroup(filter, xMetList, *it, point);
 					}
 					else
 					{
-						filterDeleteCollisionsAfterSegment(filter, &(*it)->segments[i+1], point);
+						filterDeleteCollisionsAfterSegment(filter, &(*it)->segments[segmentIndex+1], point);
 					}
 				}
 			}
@@ -139,40 +139,33 @@ bool Filter::exportToPtsFile(SFilter * filter)
 		return false;
 	}
 
-	std::ifstream ifs (store->inputFilename);
-	std::ofstream ofs (filter->outputFilename);
+	static std::fstream ifs(store->inputFilename, std::fstream::in);
 
+	FILE * output;
+	errno_t err;
 
-	/*try
+	if ((err = fopen_s(&output, filter->outputFilename.c_str(), "w")) != 0)
 	{
-		ifs.open(store->inputFilename, std::ifstream::in);
-		ofs.open(filter->outputFilename, std::ofstream::out | std::ofstream::trunc);
-	}
-	catch (std::ios_base::failure &e)
-	{
-		std::cerr << e.what() << EOL_STRING;
 		return false;
 	}
-	catch (...)
-	{
-		return false;
-	}*/
+
 	auto finalPointCount = store->initialSize - filter->deletedCount;
 
-	if (ifs.good() && ofs.good() && ifs.is_open() && ofs.is_open())
+	if (ifs.good() && ifs.is_open() && output != NULL)
 	{
-		ofs << finalPointCount << EOL_STRING;
+		fputs(finalPointCount + EOL_STRING, output);
 		getline(ifs, inLine);
 		for (int i = 0; i < store->initialSize && getline(ifs, inLine); i++)
 		{
 			if (points[i]->exists)
 			{
-				ofs << inLine;
+				fputs(inLine.c_str(), output);
 			}
 			delete points[i];
 		}
 		ifs.close();
-		ofs.close();
+		fclose(output);
+		return true;
 	}
-	return true;
+	return false;
 }
