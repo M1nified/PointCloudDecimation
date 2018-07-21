@@ -15,6 +15,7 @@ namespace Filter
 	void filterDeleteCollisionBeforeGroup(SFilter * filter, meter_list * metList, Meter * meter, Point * point);
 	void filterDeleteCollisionsAfterGroup(SFilter * filter, meter_list * metList, Meter * meter, Point * point);
 	void filterDeleteCollisionsAfterSegment(SFilter * filter, PointArr * theAfterSegment, Point * point);
+	bool filterBySingleDim(SFilter * filter, meter_list * singleDimList);
 	bool filter(SFilter * filter);
 	bool setOutputFilename(SFilter * filter, std::string filename);
 	bool areColliding(SFilter * filter, Point * pointA, Point * pointB);

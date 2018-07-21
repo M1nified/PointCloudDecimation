@@ -68,37 +68,36 @@ void Filter::filterDeleteCollisionsAfterSegment(SFilter * filter, PointArr * the
 	}
 }
 
-bool Filter::filter(SFilter * filter)
+bool Filter::filterBySingleDim(SFilter * filter, meter_list * singleDimList)
 {
-	meter_list * xMetList = &filter->store->xDim;
-	for (auto it = xMetList->begin(); it != xMetList->end(); ++it)
+	for (auto it = singleDimList->begin(); it != singleDimList->end(); ++it)
 	{
 		auto segCount = filter->store->segmentsCount;
 		for (int segmentIndex = 0; segmentIndex < segCount; segmentIndex++)
 		{
-			bool oneLeftAlive = false;
-			for (int j = 0; j < (*it)->segments[segmentIndex].count; j++)
+			for (int pointIndex = 0; pointIndex < (*it)->segments[segmentIndex].count; pointIndex++)
 			{
-				if (oneLeftAlive)
+				Point * point = &(*it)->segments[segmentIndex].points[pointIndex];
+				if (point->exists)
 				{
-					(*it)->segments[segmentIndex].points[j].exists = false;
-					filter->deletedCount++;
-				}
-				else if ((*it)->segments[segmentIndex].points[j].exists)
-				{
-					oneLeftAlive = true;
-					Point * point = &(*it)->segments[segmentIndex].points[j];
+					for (int i = pointIndex + 1; i < (*it)->segments[segmentIndex].count; i++)
+					{
+						if (areColliding(filter, point, &(*it)->segments[segmentIndex].points[i]))
+						{
+							(*it)->segments[segmentIndex].points[i].exists = false;
+						}
+					}
 					if (segmentIndex == 0)
 					{
-						filterDeleteCollisionBeforeGroup(filter, xMetList, *it, point);
+						filterDeleteCollisionBeforeGroup(filter, singleDimList, *it, point);
 					}
 					else if (segmentIndex == filter->store->segmentsCount - 1)
 					{
-						filterDeleteCollisionsAfterGroup(filter, xMetList, *it, point);
+						filterDeleteCollisionsAfterGroup(filter, singleDimList, *it, point);
 					}
 					else
 					{
-						filterDeleteCollisionsAfterSegment(filter, &(*it)->segments[segmentIndex+1], point);
+						filterDeleteCollisionsAfterSegment(filter, &(*it)->segments[segmentIndex + 1], point);
 					}
 				}
 			}
@@ -106,6 +105,15 @@ bool Filter::filter(SFilter * filter)
 		}
 	}
 	return true;
+}
+
+bool Filter::filter(SFilter * filter)
+{
+	bool result;
+	result = filterBySingleDim(filter, &filter->store->xDim)
+		&& filterBySingleDim(filter, &filter->store->yDim)
+		&& filterBySingleDim(filter, &filter->store->zDim);
+	return result;
 }
 
 bool Filter::setOutputFilename(SFilter * filter, std::string filename)

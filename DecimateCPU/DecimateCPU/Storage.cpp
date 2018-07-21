@@ -24,8 +24,8 @@ bool Storage::init(Store * store)
 bool Storage::addPoint(Store * store, Point * point)
 {
 	assignPointToMeter(store, point, 'x');
-	//assignPointToMeter(store, point, 'y');
-	//assignPointToMeter(store, point, 'z');
+	assignPointToMeter(store, point, 'y');
+	assignPointToMeter(store, point, 'z');
 	return true;
 }
 
