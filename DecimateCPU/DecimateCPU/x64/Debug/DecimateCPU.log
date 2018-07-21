@@ -1,1 +1,5 @@
-﻿
+﻿  Storage.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'z': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'y': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'x': unreferenced local variable
+  DecimateCPU.vcxproj -> D:\decimate\PointCloudDecimation\DecimateCPU\x64\Debug\DecimateCPU.exe

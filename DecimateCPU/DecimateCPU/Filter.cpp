@@ -82,7 +82,7 @@ bool Filter::filterBySingleDim(SFilter * filter, meter_list * singleDimList)
 				{
 					for (int i = pointIndex + 1; i < (*it)->segments[segmentIndex].count; i++)
 					{
-						if (areColliding(filter, point, &(*it)->segments[segmentIndex].points[i]))
+						if (&(*it)->segments[segmentIndex].points[i].exists && (filter, point, &(*it)->segments[segmentIndex].points[i]))
 						{
 							(*it)->segments[segmentIndex].points[i].exists = false;
 						}
