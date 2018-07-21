@@ -164,7 +164,7 @@ bool Storage::loadFromPtsFile(Store * store)
 		if (getline(ifs, size))
 		{
 			store->initialSize = std::stoull(size);
-			store->initialSize = 1000;
+			//store->initialSize = 1000;
 			cloudArr = (Point **)malloc(store->initialSize * sizeof(Point*));
 			store->points = cloudArr;
 			for (ull i = 0; getline(ifs, line) && i < store->initialSize; i++)
