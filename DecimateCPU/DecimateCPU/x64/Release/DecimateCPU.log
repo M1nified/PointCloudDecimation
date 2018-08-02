@@ -1,1 +1,12 @@
-﻿
+﻿  stdafx.cpp
+  DecimateCPU.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(25): warning C4129: 'S': unrecognized character escape sequence
+  Filter.cpp
+  Storage.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(159): warning C4101: 'z': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(159): warning C4101: 'y': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(159): warning C4101: 'x': unreferenced local variable
+  Generating code
+  All 277 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  DecimateCPU.vcxproj -> D:\decimate\PointCloudDecimation\DecimateCPU\x64\Release\DecimateCPU.exe

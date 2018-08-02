@@ -68,10 +68,11 @@ Meter * Storage::getMeterStruct(Store * store, meter_list * ml, meter m, Meter *
 		meter = new Meter();
 		meter->meter = m;
 		auto count = store->segmentsCount;
-		meter->segments = (PointArr *)malloc(count * sizeof PointArr);
+		meter->segments = (segments *)malloc(count * sizeof segments);
 		for (int i = 0; i < count; i++)
 		{
 			meter->segments[i].count = (ull)0;
+			meter->segments[i].size = (ull)0;
 		}
 		ml->push_front(meter);
 	}
@@ -101,18 +102,8 @@ dimension Storage::getSegmentIndex(Store * store, dimension dim)
 bool Storage::addPointToMeter(Store * store, Meter * meter, dimension dim, Point * point)
 {
 	auto segmentIndex = getSegmentIndex(store, dim);
-	PointArr * seg = &meter->segments[segmentIndex];
-	if (seg->count == 0)
-	{
-		seg->points = (Point *)malloc(sizeof (Point*));
-		seg->points[0] = *point;
-	}
-	else
-	{
-		Point * seg2 = (Point *)realloc(seg->points, seg->count * sizeof(Point *));
-		seg->points = seg2;
-	}
-	seg->count++;
+	segments * seg = &meter->segments[segmentIndex];
+	seg->push_back(point);
 	return true;
 }
 
@@ -159,12 +150,12 @@ bool Storage::loadFromPtsFile(Store * store)
 
 	Point ** cloudArr;
 
-	if (ifs.is_open())
+	if (!ifs.fail() && ifs.is_open())
 	{
 		if (getline(ifs, size))
 		{
 			store->initialSize = std::stoull(size);
-			//store->initialSize = 1000;
+			store->initialSize = 1000;
 			cloudArr = (Point **)malloc(store->initialSize * sizeof(Point*));
 			store->points = cloudArr;
 			for (ull i = 0; getline(ifs, line) && i < store->initialSize; i++)

@@ -15,19 +15,15 @@ void Filter::filterDeleteCollisionBeforeGroup(SFilter * filter, meter_list * met
 	if (previousMeter != nullptr)
 	{
 		previousMeter = Storage::getMeterStruct(filter->store, metList, previousMeter->meter - 1, previousMeter);
-		PointArr * last = &previousMeter->segments[filter->store->segmentsCount - 1];
-		if (last->count > 0)
-		{
-			for (int j = 0; j < last->count; j++)
+		segments * last = &previousMeter->segments[filter->store->segmentsCount - 1];
+			for (int j = 0; j < last->size(); j++)
 			{
-				if (last->points[j].exists && areColliding(filter, point, &last->points[j]))
+				if (last[j]->exists && areColliding(filter, point, last->points[j]))
 				{
-					last->points[j].exists = false;
+					last->points[j]->exists = false;
 					filter->deletedCount++;
 				}
 			}
-
-		}
 	}
 }
 
@@ -37,14 +33,14 @@ void Filter::filterDeleteCollisionsAfterGroup(SFilter * filter, meter_list * met
 	if (nextMeter != nullptr)
 	{
 		nextMeter = Storage::getMeterStruct(filter->store, metList, nextMeter->meter + 1, nextMeter);
-		PointArr * first = &nextMeter->segments[0];
+		segments * first = &nextMeter->segments[0];
 		if (first->count > 0)
 		{
 			for (int j = 0; j < first->count; j++)
 			{
-				if (first->points[j].exists && areColliding(filter, point, &first->points[j]))
+				if (first->points[j]->exists && areColliding(filter, point, first->points[j]))
 				{
-					first->points[j].exists = false;
+					first->points[j]->exists = false;
 					filter->deletedCount++;
 				}
 			}
@@ -53,15 +49,16 @@ void Filter::filterDeleteCollisionsAfterGroup(SFilter * filter, meter_list * met
 	}
 }
 
-void Filter::filterDeleteCollisionsAfterSegment(SFilter * filter, PointArr * theAfterSegment, Point * point)
+void Filter::filterDeleteCollisionsAfterSegment(SFilter * filter, segments * theAfterSegment, Point * point)
 {
 	if (theAfterSegment->count > 0)
 	{
 		for (int j = 0; j < theAfterSegment->count; j++)
 		{
-			if (theAfterSegment->points[j].exists && areColliding(filter, point, &theAfterSegment->points[j]))
+			if (theAfterSegment->points[j]->exists 
+				&& areColliding(filter, point, theAfterSegment->points[j]))
 			{
-				theAfterSegment->points[j].exists = false;
+				theAfterSegment->points[j]->exists = false;
 				filter->deletedCount++;
 			}
 		}
@@ -75,16 +72,16 @@ bool Filter::filterBySingleDim(SFilter * filter, meter_list * singleDimList)
 		auto segCount = filter->store->segmentsCount;
 		for (int segmentIndex = 0; segmentIndex < segCount; segmentIndex++)
 		{
-			for (int pointIndex = 0; pointIndex < (*it)->segments[segmentIndex].count; pointIndex++)
+			for (int pointIndex = 0; pointIndex < (*it)->segments[segmentIndex].size; pointIndex++)
 			{
-				Point * point = &(*it)->segments[segmentIndex].points[pointIndex];
+				Point * point = &(*it)->segments[segmentIndex]->points[pointIndex];
 				if (point->exists)
 				{
-					for (int i = pointIndex + 1; i < (*it)->segments[segmentIndex].count; i++)
+					for (int i = pointIndex + 1; i < (*it)->segments[segmentIndex].size; i++)
 					{
-						if (&(*it)->segments[segmentIndex].points[i].exists && (filter, point, &(*it)->segments[segmentIndex].points[i]))
+						if (&(*it)->segments[segmentIndex]->points[i]->exists && (filter, point, &(*it)->segments[segmentIndex]->points[i]))
 						{
-							(*it)->segments[segmentIndex].points[i].exists = false;
+							(*it)->segments[segmentIndex]->points[i].exists = false;
 						}
 					}
 					if (segmentIndex == 0)

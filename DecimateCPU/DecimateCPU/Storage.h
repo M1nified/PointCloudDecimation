@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <stdlib.h>
 
 meter getMeter(dimension dim);
 rest getRest(dimension dim);

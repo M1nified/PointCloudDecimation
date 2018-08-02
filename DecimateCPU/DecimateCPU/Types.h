@@ -1,5 +1,6 @@
 #pragma once
 #include <list>
+#include <vector>
 
 typedef unsigned long long ull;
 
@@ -14,16 +15,12 @@ struct Point
 	dimension x, y, z;
 };
 
-struct PointArr
-{
-	ull count;
-	Point * points;
-};
+typedef std::vector<Point*> segments;
 
 struct Meter
 {
 	meter meter;
-	PointArr * segments;
+	segments * segments;
 };
 
 typedef std::list<Meter *> meter_list;

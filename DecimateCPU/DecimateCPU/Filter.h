@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define EOL_STRING "\r\n"
 

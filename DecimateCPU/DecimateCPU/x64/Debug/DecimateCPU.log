@@ -1,5 +1,40 @@
-﻿  Storage.cpp
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'z': unreferenced local variable
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'y': unreferenced local variable
-d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(158): warning C4101: 'x': unreferenced local variable
-  DecimateCPU.vcxproj -> D:\decimate\PointCloudDecimation\DecimateCPU\x64\Debug\DecimateCPU.exe
+﻿  DecimateCPU.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\decimatecpu.cpp(25): warning C4129: 'S': unrecognized character escape sequence
+  Filter.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(23): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(23): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(23): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(23): error C2664: 'bool Filter::areColliding(SFilter *,Point *,Point *)': cannot convert argument 3 from 'Point **' to 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(23): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(25): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(25): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(25): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(45): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(45): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(45): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(45): error C2664: 'bool Filter::areColliding(SFilter *,Point *,Point *)': cannot convert argument 3 from 'Point **' to 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(45): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(47): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(47): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(47): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(63): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(63): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(63): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(63): error C2664: 'bool Filter::areColliding(SFilter *,Point *,Point *)': cannot convert argument 3 from 'Point **' to 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(63): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(65): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(65): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(65): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(81): error C2440: 'initializing': cannot convert from 'Point **' to 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(81): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(86): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(86): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(86): note: did you intend to use '->' instead?
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(88): error C2228: left of '.exists' must have class/struct/union
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(88): note: type is 'Point *'
+  d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\filter.cpp(88): note: did you intend to use '->' instead?
+  Storage.cpp
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(149): warning C4101: 'z': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(149): warning C4101: 'y': unreferenced local variable
+d:\decimate\pointclouddecimation\decimatecpu\decimatecpu\storage.cpp(149): warning C4101: 'x': unreferenced local variable
+  Generating Code...
