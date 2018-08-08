@@ -4,10 +4,28 @@
 
 #include "Point.h"
 
+#include "TxtToBinConverter.h"
+
 #include <stdio.h>
 #include <fstream>
 #include <string>
 #include <iostream>
+
+#define FILTER_BLOCKS_COUNT_Y 10000
+#define FILTER_BLOCKS_CHUNK_SIZE 1000000
+
+#define FILTER_HIT_SIZE 100000
+
+#define CUDA_MEMCPY_FAIL_CHECK(cudaStatus) \
+if (cudaStatus != cudaSuccess) { \
+	fprintf(stderr, "cudaMemcpy failed!"); \
+	goto Error; \
+}
+#define CUDA_MALLOC_FAIL_CHECK(cudaStatus) \
+if (cudaStatus != cudaSuccess) { \
+	fprintf(stderr, "cudaMalloc failed!"); \
+	goto Error; \
+}
 
 typedef unsigned long long ull;
 typedef short int si;
@@ -20,34 +38,108 @@ __global__ void addKernel(int *c, const int *a, const int *b)
     c[i] = a[i] + b[i];
 }
 
-__global__ void makeCubesKernel(const si d, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
+__global__ void makeCubesKernel(const si d, const ull arrSize, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
 {
 	ull i = blockIdx.x*blockDim.x + threadIdx.x;
-	xGpu[i] = pointsGpu[i].x % d;
-	yGpu[i] = pointsGpu[i].y % d;
-	zGpu[i] = pointsGpu[i].z % d;
-	bxGpu[i] = pointsGpu[i].x / d;
-	byGpu[i] = pointsGpu[i].y / d;
-	bzGpu[i] = pointsGpu[i].z / d;
+	if (i < arrSize)
+	{
+		xGpu[i] = pointsGpu[i].x % d;
+		yGpu[i] = pointsGpu[i].y % d;
+		zGpu[i] = pointsGpu[i].z % d;
+		bxGpu[i] = pointsGpu[i].x / d;
+		byGpu[i] = pointsGpu[i].y / d;
+		bzGpu[i] = pointsGpu[i].z / d;
+	}
 
 }
 
-__global__ void filterCubesKernel(const si d, const ull arrLength, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
+__global__ void filterCubesKernel(const si d, const ull arrLength, bool * removedGpu, bool * siblingFound, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
 {
-	ull i = blockIdx.x*blockDim.x + threadIdx.x;
-	ull j = i + 1;
-	for (; j < arrLength && bxGpu[i] != bxGpu[j] && byGpu[i] != byGpu[j] && bzGpu[i] != bzGpu[j]; j++);
-	if (j < arrLength)
+	ull i, j, jLimit;
+	i = blockIdx.x*blockDim.x + threadIdx.x;
+	if (i < arrLength && !siblingFound[i])
 	{
-		removedGpu[j-1] = true;
+		jLimit = (blockIdx.y + 1) * FILTER_BLOCKS_CHUNK_SIZE;
+		//ull j = i + (blockIdx.y * FILTER_BLOCKS_COUNT_Y);
+		//ull searchLimit = j + FILTER_BLOCKS_COUNT_Y;
+		for (
+			j = i + 1;
+			j < arrLength
+			&& j < jLimit
+			//&& j < 100000
+			/*&& !(bxGpu[i] == bxGpu[j]
+				&& byGpu[i] == byGpu[j]
+				&& bzGpu[i] == bzGpu[j])*/;
+			j++)
+		{
+			if (bxGpu[i] == bzGpu[j]
+				&& byGpu[i] == byGpu[j]
+				&& bzGpu[i] == bzGpu[j])
+			{
+				break;
+			}
+		}
+		if (j < arrLength 
+			&& bxGpu[i] == bzGpu[j]
+			&& byGpu[i] == byGpu[j]
+			&& bzGpu[i] == bzGpu[j])
+		{
+			removedGpu[j] = true;
+			siblingFound[i] = true;
+		}
+	}
+}
+
+//__global__ void filterCubesCmpKernel(const si d, const ull baseIndex, const si x, const si y, const si z, const si bx, const si by, const si bz, const ull arrLength, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
+//{
+//	ull i;
+//	i = blockIdx.x*blockDim.x + threadIdx.x + baseIndex;
+//	if (i < arrLength 
+//		&& !removedGpu[i]
+//		&& z == zGpu[i]
+//		&& y == yGpu[i]
+//		&& z == zGpu[i]
+//		&& bx == bxGpu[i]
+//		&& by == byGpu[i]
+//		&& bz == bzGpu[i])
+//	{
+//		removedGpu[i] = true;
+//	}
+//}
+
+__global__ void filterCubesCmpKernel(const si d, const ull baseIndex, si * xGpuTmp, si * yGpuTmp, si * zGpuTmp, si * bxGpuTmp, si * byGpuTmp, si * bzGpuTmp, const ull arrLength, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
+{
+	ull i, j;
+	i = blockIdx.x*blockDim.x + threadIdx.x + baseIndex;
+	if (i < arrLength && !removedGpu[i])
+	{
+		for (j = 0; j < FILTER_HIT_SIZE; j++)
+		{
+			if (zGpuTmp[j] == zGpu[i]
+				&& yGpuTmp[j] == yGpu[i]
+				&& zGpuTmp[j] == zGpu[i]
+				&& bxGpuTmp[j] == bxGpu[i]
+				&& byGpuTmp[j] == byGpu[i]
+				&& bzGpuTmp[j] == bzGpu[i])
+			{
+				removedGpu[i] = true;
+			}
+		}
 	}
 }
 
 int main()
 {
+
+	//auto converter = new TxtToBinConverter();
+	//converter->SetTextFileName("D:\\decimate\\SONGA_BREEZE_L4.pts");
+	//converter->SetBinFileName("K:\\SONGA_BREEZE_L4.bin");
+	//converter->Convert();
+	//delete converter;
+
 	si d = 7;
 
-	FILE * cloudFileBin = fopen("S:\SONGA_BREEZE_L4.bin", "rb");
+	FILE * cloudFileBin = fopen("K:\SONGA_BREEZE_L4.bin", "rb");
 
 	if (cloudFileBin == NULL)
 	{
@@ -64,28 +156,29 @@ int main()
 	ull vramSizeInBytes = 1 * 1024 * 1024 * 1024;
 	//vramSizeInBytes = 1920 * sizeOfPoint;
 	ull buffCount = vramSizeInBytes / sizeOfPoint;
+	buffCount = 1000000;
 	ull buffSize = vramSizeInBytes - (vramSizeInBytes % sizeOfPoint);
 	Point * cloudBuffer = (Point *)malloc(buffSize);
 
-	ull pointsCount = fread(cloudBuffer, sizeOfPoint, buffCount, cloudFileBin);
-
+	ull pointsCount;
 	cudaError_t cudaStatus;
 
-	bool * removed = (bool *)calloc(pointsCount, sizeof(bool));
-	si * x = (si *)malloc(pointsCount * sizeof(si));
-	si * y = (si *)malloc(pointsCount * sizeof(si));
-	si * z = (si *)malloc(pointsCount * sizeof(si));
-	si * bx = (si *)malloc(pointsCount * sizeof(si));
-	si * by = (si *)malloc(pointsCount * sizeof(si));
-	si * bz = (si *)malloc(pointsCount * sizeof(si));
+	bool * removed = (bool *)calloc(cloudCount, sizeof(bool));
+	si * x = (si *)malloc(cloudCount * sizeof(si));
+	si * y = (si *)malloc(cloudCount * sizeof(si));
+	si * z = (si *)malloc(cloudCount * sizeof(si));
+	si * bx = (si *)malloc(cloudCount * sizeof(si));
+	si * by = (si *)malloc(cloudCount * sizeof(si));
+	si * bz = (si *)malloc(cloudCount * sizeof(si));
 
-    bool * removedGpu = false;
-    si * xGpu = 0;
-    si * yGpu = 0;
-    si * zGpu = 0;
-    si * bxGpu = 0;
-    si * byGpu = 0;
-    si * bzGpu = 0;
+	bool * removedGpu = false;
+	bool * siblingFound = false;
+	si * xGpu = 0;
+	si * yGpu = 0;
+	si * zGpu = 0;
+	si * bxGpu = 0;
+	si * byGpu = 0;
+	si * bzGpu = 0;
 
 	Point * pointsGpu = NULL;
 
@@ -95,87 +188,146 @@ int main()
 		goto Error;
 	}
 
-	int blockSize;
+	int maxBlockSize;
 	int minGridSize;
 	int gridSize;
 
-	cudaStatus = cudaMalloc((void**)&removedGpu, pointsCount * sizeof(bool));
+	cudaStatus = cudaMalloc((void**)&removedGpu, buffCount * sizeof(bool));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&siblingFound, buffCount * sizeof(bool));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&xGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&yGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&zGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&bxGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&byGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&bzGpu, buffCount * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&pointsGpu, buffCount * sizeOfPoint);
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+
+	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&xGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&yGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&zGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&bxGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&byGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&bzGpu, pointsCount * sizeof(si));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		goto Error;
-	}
-	cudaStatus = cudaMalloc((void**)&pointsGpu, pointsCount * sizeOfPoint);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
+		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
 		goto Error;
 	}
 
-	cudaStatus = cudaMemcpy(pointsGpu, cloudBuffer, pointsCount * sizeOfPoint, cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
-	}
+	ull blockSize = 1024; // 1024
 
-	ull blocksCount = 1024;
-	makeCubesKernel <<<pointsCount/blocksCount, blocksCount >>> (d, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
+	for (ull i = 0; (pointsCount = fread(cloudBuffer, sizeOfPoint, buffCount, cloudFileBin)) != 0; i += pointsCount)
+	{
+		cudaStatus = cudaMemcpy(pointsGpu, cloudBuffer, pointsCount * sizeOfPoint, cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+			goto Error;
+		}
 
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "makeCubesKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		goto Error;
-	}
+		makeCubesKernel << <pointsCount / blockSize + 1, blockSize >> > (d, pointsCount, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
 
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-		goto Error;
-	}
+		cudaStatus = cudaGetLastError();
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "makeCubesKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+			goto Error;
+		}
 
-	cudaStatus = cudaMemcpy(x, xGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
-	}
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching makeCubesKernel!\n", cudaStatus);
+			goto Error;
+		}
 
-	cudaStatus = cudaMemcpy(bx, bxGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
+		cudaStatus = cudaMemcpy(&x[i], xGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		cudaStatus = cudaMemcpy(&y[i], yGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		cudaStatus = cudaMemcpy(&z[i], zGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		cudaStatus = cudaMemcpy(&bx[i], bxGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		cudaStatus = cudaMemcpy(&by[i], byGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		cudaStatus = cudaMemcpy(&bz[i], bzGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
 	}
 
 	// TEST
 
-	filterCubesKernel <<<pointsCount / blocksCount, blocksCount >>> (d, pointsCount, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
+	dim3 gridDim(pointsCount / blockSize);
+	//filterCubesKernel <<<gridDim, blockSize >>> (d, pointsCount, removedGpu, siblingFound, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
+	
+	si * xGpuTmp = 0;
+	si * yGpuTmp = 0;
+	si * zGpuTmp = 0;
+	si * bxGpuTmp = 0;
+	si * byGpuTmp = 0;
+	si * bzGpuTmp = 0;
+
+	cudaStatus = cudaMalloc((void**)&xGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&yGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&zGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&bxGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&byGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&bzGpuTmp, FILTER_HIT_SIZE * sizeof(si));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+
+	si * xTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+	si * yTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+	si * zTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+	si * bxTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+	si * byTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+	si * bzTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
+
+	for (ull i = 0; i < pointsCount; i+=FILTER_HIT_SIZE)
+	{
+		for (int j = 0; j < FILTER_HIT_SIZE; j++)
+		{
+			xTmp[j] = x[i + j];
+			yTmp[j] = y[i + j];
+			zTmp[j] = z[i + j];
+			bxTmp[j] = bx[i + j];
+			byTmp[j] = by[i + j];
+			bzTmp[j] = bz[i + j];
+		}
+		cudaStatus = cudaMemcpy(xTmp, xGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+		cudaStatus = cudaMemcpy(yTmp, yGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+		cudaStatus = cudaMemcpy(zTmp, zGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+		cudaStatus = cudaMemcpy(bxTmp, bxGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+		cudaStatus = cudaMemcpy(byTmp, byGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+		cudaStatus = cudaMemcpy(bzTmp, bzGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
+		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+		ull gridSize;
+		gridSize = (pointsCount - i) / blockSize;
+		filterCubesCmpKernel << <gridSize, blockSize >> > (d, i, xGpuTmp, yGpuTmp, zGpuTmp, bxGpuTmp, byGpuTmp, bzGpuTmp, pointsCount, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
+
+		//cudaStatus = cudaGetLastError();
+		//if (cudaStatus != cudaSuccess) {
+		//	fprintf(stderr, "makeCubesKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+		//	goto Error;
+		//}
+
+	}
 
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
@@ -185,14 +337,21 @@ int main()
 
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching filterCubesKernel!\n", cudaStatus);
 		goto Error;
 	}
 
-	cudaStatus = cudaMemcpy(removed, removedGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto Error;
+	cudaStatus = cudaMemcpy(removed, removedGpu, pointsCount * sizeof(bool), cudaMemcpyDeviceToHost);
+	CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+
+	ull removedCount = 0;
+	for (ull i = 0; i < pointsCount; i++)
+	{
+		if (removed[i])
+		{
+			removedCount++;
+		}
 	}
 
 	// TEST END
