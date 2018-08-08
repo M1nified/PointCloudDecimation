@@ -11,6 +11,8 @@
 #include <string>
 #include <iostream>
 
+#pragma region DefineRegion
+
 #define PRIME_1 157 // 73856093
 #define PRIME_2 183 // 19349663
 #define PRIME_3 386 // 83492791
@@ -37,6 +39,8 @@ if (cudaStatus != cudaSuccess) { \
 typedef unsigned long long ull;
 typedef short int si;
 
+#pragma endregion
+
 __global__ void makeCubesKernel(const si d, const ull arrSize, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
 {
 	ull i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -50,64 +54,6 @@ __global__ void makeCubesKernel(const si d, const ull arrSize, bool * removedGpu
 		bzGpu[i] = pointsGpu[i].z / d;
 	}
 
-}
-
-__global__ void filterCubesKernel(const si d, const ull arrLength, bool * removedGpu, bool * siblingFound, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
-{
-	ull i, j, jLimit;
-	i = blockIdx.x*blockDim.x + threadIdx.x;
-	if (i < arrLength && !siblingFound[i])
-	{
-		jLimit = (blockIdx.y + 1) * FILTER_BLOCKS_CHUNK_SIZE;
-		//ull j = i + (blockIdx.y * FILTER_BLOCKS_COUNT_Y);
-		//ull searchLimit = j + FILTER_BLOCKS_COUNT_Y;
-		for (
-			j = i + 1;
-			j < arrLength
-			&& j < jLimit
-			//&& j < 100000
-			/*&& !(bxGpu[i] == bxGpu[j]
-				&& byGpu[i] == byGpu[j]
-				&& bzGpu[i] == bzGpu[j])*/;
-			j++)
-		{
-			if (bxGpu[i] == bzGpu[j]
-				&& byGpu[i] == byGpu[j]
-				&& bzGpu[i] == bzGpu[j])
-			{
-				break;
-			}
-		}
-		if (j < arrLength 
-			&& bxGpu[i] == bzGpu[j]
-			&& byGpu[i] == byGpu[j]
-			&& bzGpu[i] == bzGpu[j])
-		{
-			removedGpu[j] = true;
-			siblingFound[i] = true;
-		}
-	}
-}
-
-__global__ void filterCubesCmpKernel(const si d, const ull baseIndex, si * xGpuTmp, si * yGpuTmp, si * zGpuTmp, si * bxGpuTmp, si * byGpuTmp, si * bzGpuTmp, const ull arrLength, bool * removedGpu, si * xGpu, si * yGpu, si * zGpu, si * bxGpu, si * byGpu, si * bzGpu, Point * pointsGpu)
-{
-	ull i, j;
-	i = blockIdx.x*blockDim.x + threadIdx.x + baseIndex;
-	if (i < arrLength && !removedGpu[i])
-	{
-		for (j = 0; j < FILTER_HIT_SIZE; j++)
-		{
-			if (zGpuTmp[j] == zGpu[i]
-				&& yGpuTmp[j] == yGpu[i]
-				&& zGpuTmp[j] == zGpu[i]
-				&& bxGpuTmp[j] == bxGpu[i]
-				&& byGpuTmp[j] == byGpu[i]
-				&& bzGpuTmp[j] == bzGpu[i])
-			{
-				removedGpu[i] = true;
-			}
-		}
-	}
 }
 
 __global__ void mapCubesKernel(const ull arrLen, const ull mapLen, const ull dimOffset, si * bxGpu, si * byGpu, si * bzGpu, bool * bMapIsInGpu, si * bMapGpu)
@@ -125,11 +71,16 @@ __global__ void mapCubesKernel(const ull arrLen, const ull mapLen, const ull dim
 int main()
 {
 
+#pragma region Txt2BinConversionRegion
+
 	//auto converter = new TxtToBinConverter();
 	//converter->SetTextFileName("D:\\decimate\\SONGA_BREEZE_L4.pts");
 	//converter->SetBinFileName("K:\\SONGA_BREEZE_L4.bin");
 	//converter->Convert();
 	//delete converter;
+
+#pragma endregion
+
 
 	si d = 7;
 
@@ -150,9 +101,11 @@ int main()
 	ull vramSizeInBytes = 1 * 1024 * 1024 * 1024;
 	//vramSizeInBytes = 1920 * sizeOfPoint;
 	ull buffCount = vramSizeInBytes / sizeOfPoint;
-	buffCount = 1000000;
+	buffCount = 1000000; // fixed for now
 	ull buffSize = vramSizeInBytes - (vramSizeInBytes % sizeOfPoint);
 	Point * cloudBuffer = (Point *)malloc(buffSize);
+
+	ull blockSize = 1024; // 1024
 
 	ull pointsCount;
 	cudaError_t cudaStatus;
@@ -204,14 +157,6 @@ int main()
 	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
 	cudaStatus = cudaMalloc((void**)&pointsGpu, buffCount * sizeOfPoint);
 	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-
-	cudaStatus = cudaSetDevice(0);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-		goto Error;
-	}
-
-	ull blockSize = 1024; // 1024
 
 #pragma region IndexingPrepRegion
 
@@ -265,19 +210,14 @@ int main()
 
 		cudaStatus = cudaMemcpy(&x[i], xGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
 		cudaStatus = cudaMemcpy(&y[i], yGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
 		cudaStatus = cudaMemcpy(&z[i], zGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
 		cudaStatus = cudaMemcpy(&bx[i], bxGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
 		cudaStatus = cudaMemcpy(&by[i], byGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
 		cudaStatus = cudaMemcpy(&bz[i], bzGpu, pointsCount * sizeof(si), cudaMemcpyDeviceToHost);
 		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
 
@@ -287,6 +227,8 @@ int main()
 	CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
 	cudaStatus = cudaMemcpy(bMap, bMapGpu, mapLen * sizeof(ull), cudaMemcpyDeviceToHost);
 	CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+
+	// TODO: Add memory cleanup
 
 	ull count = 0; // number of unique boxes
 	for (ull i = 0; i < mapLen; i++)
