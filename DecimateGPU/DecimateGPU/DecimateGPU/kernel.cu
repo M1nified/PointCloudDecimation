@@ -11,6 +11,13 @@
 #include <string>
 #include <iostream>
 
+#define PRIME_1 157 // 73856093
+#define PRIME_2 183 // 19349663
+#define PRIME_3 386 // 83492791
+
+#define MAKE_3D_HASH(x,y,z) \
+((x) * PRIME_1) ^ ((y) * PRIME_2) ^ ((z) * PRIME_3);
+
 #define FILTER_BLOCKS_COUNT_Y 10000
 #define FILTER_BLOCKS_CHUNK_SIZE 1000000
 
@@ -100,6 +107,18 @@ __global__ void filterCubesCmpKernel(const si d, const ull baseIndex, si * xGpuT
 				removedGpu[i] = true;
 			}
 		}
+	}
+}
+
+__global__ void mapCubesKernel(const ull arrLen, const ull mapLen, const ull dimOffset, si * bxGpu, si * byGpu, si * bzGpu, bool * bMapIsInGpu, si * bMapGpu)
+{
+	ull i = blockIdx.x*blockDim.x + threadIdx.x;
+	ull hash;
+	if (i < arrLen)
+	{
+		hash = MAKE_3D_HASH(bxGpu[i] + dimOffset, byGpu[i] + dimOffset, bzGpu[i] + dimOffset);
+		bMapIsInGpu[hash] = true;
+		bMapGpu[hash] = i;
 	}
 }
 
@@ -194,6 +213,32 @@ int main()
 
 	ull blockSize = 1024; // 1024
 
+#pragma region IndexingPrepRegion
+
+	long long int bMin, bMax;
+	ull mapLen;
+	si * bMap;
+	si * bMapGpu;
+
+	bool * bIsInMap = false;
+	bool * bIsInMapGpu = false;
+
+	bMin = -100000;
+	bMax = 100000;
+
+	mapLen = abs(bMin) + abs(bMax) + 1;
+
+	mapLen = MAKE_3D_HASH(mapLen, mapLen, mapLen);
+
+	bIsInMap = (bool *)calloc(mapLen, sizeof(bool));
+	bMap = (si *)malloc(mapLen * sizeof(ull));
+	cudaStatus = cudaMalloc((void**)&bIsInMapGpu, mapLen * sizeof(bool));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMalloc((void**)&bMapGpu, mapLen * sizeof(ull));
+	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
+
+#pragma endregion
+
 	for (ull i = 0; (pointsCount = fread(cloudBuffer, sizeOfPoint, buffCount, cloudFileBin)) != 0; i += pointsCount)
 	{
 		cudaStatus = cudaMemcpy(pointsGpu, cloudBuffer, pointsCount * sizeOfPoint, cudaMemcpyHostToDevice);
@@ -203,6 +248,8 @@ int main()
 		}
 
 		makeCubesKernel << <pointsCount / blockSize + 1, blockSize >> > (d, pointsCount, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
+
+		mapCubesKernel << <pointsCount / blockSize + 1, blockSize >> > (pointsCount, mapLen, -bMin, bxGpu, byGpu, bzGpu, bIsInMapGpu, bMapGpu);
 
 		cudaStatus = cudaGetLastError();
 		if (cudaStatus != cudaSuccess) {
@@ -236,100 +283,16 @@ int main()
 
 	}
 
-	// TEST
-
-	dim3 gridDim(pointsCount / blockSize);
-	//filterCubesKernel <<<gridDim, blockSize >>> (d, pointsCount, removedGpu, siblingFound, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
-	
-	si * xGpuTmp = 0;
-	si * yGpuTmp = 0;
-	si * zGpuTmp = 0;
-	si * bxGpuTmp = 0;
-	si * byGpuTmp = 0;
-	si * bzGpuTmp = 0;
-
-	cudaStatus = cudaMalloc((void**)&xGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-	cudaStatus = cudaMalloc((void**)&yGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-	cudaStatus = cudaMalloc((void**)&zGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-	cudaStatus = cudaMalloc((void**)&bxGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-	cudaStatus = cudaMalloc((void**)&byGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-	cudaStatus = cudaMalloc((void**)&bzGpuTmp, FILTER_HIT_SIZE * sizeof(si));
-	CUDA_MALLOC_FAIL_CHECK(cudaStatus);
-
-	si * xTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-	si * yTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-	si * zTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-	si * bxTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-	si * byTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-	si * bzTmp = (si *)malloc(FILTER_HIT_SIZE * sizeof(si));
-
-	for (ull i = 0; i < pointsCount; i+=FILTER_HIT_SIZE)
-	{
-		for (int j = 0; j < FILTER_HIT_SIZE; j++)
-		{
-			xTmp[j] = x[i + j];
-			yTmp[j] = y[i + j];
-			zTmp[j] = z[i + j];
-			bxTmp[j] = bx[i + j];
-			byTmp[j] = by[i + j];
-			bzTmp[j] = bz[i + j];
-		}
-		cudaStatus = cudaMemcpy(xTmp, xGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-		cudaStatus = cudaMemcpy(yTmp, yGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-		cudaStatus = cudaMemcpy(zTmp, zGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-		cudaStatus = cudaMemcpy(bxTmp, bxGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-		cudaStatus = cudaMemcpy(byTmp, byGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-		cudaStatus = cudaMemcpy(bzTmp, bzGpuTmp, FILTER_HIT_SIZE * sizeof(si), cudaMemcpyDeviceToHost);
-		CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
-
-		ull gridSize;
-		gridSize = (pointsCount - i) / blockSize;
-		filterCubesCmpKernel << <gridSize, blockSize >> > (d, i, xGpuTmp, yGpuTmp, zGpuTmp, bxGpuTmp, byGpuTmp, bzGpuTmp, pointsCount, removedGpu, xGpu, yGpu, zGpu, bxGpu, byGpu, bzGpu, pointsGpu);
-
-		//cudaStatus = cudaGetLastError();
-		//if (cudaStatus != cudaSuccess) {
-		//	fprintf(stderr, "makeCubesKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		//	goto Error;
-		//}
-
-	}
-
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "makeCubesKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		goto Error;
-	}
-
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching filterCubesKernel!\n", cudaStatus);
-		goto Error;
-	}
-
-	cudaStatus = cudaMemcpy(removed, removedGpu, pointsCount * sizeof(bool), cudaMemcpyDeviceToHost);
+	cudaStatus = cudaMemcpy(bIsInMap, bIsInMapGpu, mapLen * sizeof(bool), cudaMemcpyDeviceToHost);
+	CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
+	cudaStatus = cudaMemcpy(bMap, bMapGpu, mapLen * sizeof(ull), cudaMemcpyDeviceToHost);
 	CUDA_MEMCPY_FAIL_CHECK(cudaStatus);
 
-
-	ull removedCount = 0;
-	for (ull i = 0; i < pointsCount; i++)
+	ull count = 0; // number of unique boxes
+	for (ull i = 0; i < mapLen; i++)
 	{
-		if (removed[i])
-		{
-			removedCount++;
-		}
+		if (bIsInMap[i]) count++;
 	}
-
-	// TEST END
 
 	return 0;
 
